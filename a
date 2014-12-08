@@ -1,0 +1,4 @@
+#!/bin/bash
+make clean
+make Client
+./client --serverAddress=000.111.222.333 --port=1234 --send ./file
