@@ -1,7 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <openssl/ssl.h>
+#include <openssl/rsa.h>
+#include <openssl/engine.h>
+#include <openssl/err.h>
 
-
+//SSL_library_init();
 
 /* Global variables used throughout the program
 */
@@ -38,28 +42,28 @@ void validateInput(int argc, char *argv[])
 void getInput(int argc, char *argv[])
 {
  
-   //Get server address
-   serverAddress = argv[1]+16; // The actual server address is offset by 
+	//Get server address
+   	serverAddress = argv[1]+16; // The actual server address is offset by 
                                // "--serverAddress=" which is 16 char long
-   printf(serverAddress);
-   printf("\n");
+   	printf(serverAddress);
+   	printf("\n");
 
-   //Get port
-   port = argv[2] + 7; //The acutal port is offset by "--port=" which is 7
+   	//Get port
+    port = argv[2] + 7; //The acutal port is offset by "--port=" which is 7
                        //char long
-   printf(port);
-   printf("\n");
+    printf(port);
+    printf("\n");
 
-   //Get Action
-   action = argv[3] + 2;   //The actual action is offset by "--" which is 2
+    //Get Action
+    action = argv[3] + 2;   //The actual action is offset by "--" which is 2
                            //char long
-   printf(action);
-   printf("\n");
+    printf(action);
+    printf("\n");
 
-   //Get File
-   file = argv[4];
-   printf(file);
-   printf("\n"); 
+    //Get File
+    file = argv[4];
+    printf(file);
+    printf("\n"); 
 }
 
 
@@ -67,6 +71,13 @@ int main(int argc, char *argv[])
 {
     validateInput(argc,argv);
     getInput(argc,argv);
+
+    SSL_load_error_strings();
+    ERR_load_BIO_strings();
+    OpenSSL_add_all_algorithms();
+    SSL_library_init();
+
+	
     return 0;
 
 }

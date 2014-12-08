@@ -1,5 +1,5 @@
 Client : Client.cc
-	gcc -ggdb Client.cc -o client
+	gcc -ggdb Client.cc -lssl -lcrypto -o client
 
 clean : 
 	rm client
