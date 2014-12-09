@@ -1,5 +1,4 @@
 #!/bin/bash
-make clean
+rm client
 make Client
-make Server
 ./client --serverAddress=10.0.2.15 --port=9249 --send ./file
