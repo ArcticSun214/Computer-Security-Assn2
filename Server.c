@@ -102,7 +102,7 @@ void  authenticate(SSL *openssl_SSL)
 
     //Decrypt ecrypted random number
     unsigned char num_decrypt[numSize];
-    FILE *fp = fopen("./mycert.pem","rb");
+    FILE *fp = fopen("./privateKey.pem","rb");
     if(fp == NULL)
     {
         printf("Failed to open \"mycert.pem\"");
@@ -112,12 +112,34 @@ void  authenticate(SSL *openssl_SSL)
     rsa = PEM_read_RSAPrivateKey(fp, &rsa, NULL, NULL);
     if(rsa == NULL)
         printf("RSAPrivatekey failed\n");
+
     if(RSA_private_decrypt(sizeof(num), num,num_decrypt,rsa,\
         RSA_PKCS1_PADDING) < 0)
     {
         printf("Failed to decrypt random number");
+	ERR_print_errors_fp(stdout);
+
+    }
+    printf("Decrypted: %u \n",(int)num_decrypt[0]);
+
+    //Hashing
+    unsigned char hashed[RSA_size(rsa)-11-36];
+    int h = SHA1(num_decrypt,sizeof(num_decrypt)-11, hashed);   //The -11
+                                                                //is to get rid
+                                                                //ofpadding
+    printf("HS: %u \n ", (unsigned int)hashed[0]);
+    
+    //Sign hashed value
+    unsigned char signedHash[RSA_size(rsa)];
+    if ( RSA_sign(NID_sha1, hashed, 20, signedHash, sizeof(signedHash),\
+        rsa) != 1)
+    {
+        printf("Signing Failed \n");
+        ERR_print_errors_fp(stdout);
     }
 
+    //Send signed hashed value
+    SSL_write(openssl_SSL, signedHash, sizeof(signedHash));
     
 }
 
@@ -182,7 +204,6 @@ int main(int argc, char *argv[])
     SSL_library_init();
 	ERR_load_crypto_strings();
     OpenSSL_add_all_algorithms();
-
     //Initialize socket
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if(sockfd < 0)
@@ -205,7 +226,7 @@ int main(int argc, char *argv[])
         printf("Bind Error");
         exit(EXIT_FAILURE);
     }
-
+while(1) {
     //Listen
     if((listen(sockfd,5)) < 0)
     {
@@ -233,27 +254,12 @@ int main(int argc, char *argv[])
     //Set the Diffie-Hellman Parameters
     set_DH_param(openssl_context);
 
-    //Set the cipher suites to be used
+    //Set the cipher suites to be used      ********************* move
     if( SSL_CTX_set_cipher_list(openssl_context, "aNULL") != 1)
     {
 	    printf("SSL_CTX_set_cipher_list() Failed"); 
     }
     
-    //Set the certificate
-    if(SSL_CTX_use_certificate_file(openssl_context,"mycert.pem",\
-        SSL_FILETYPE_PEM) !=1)
-    {
-        printf("SSL_CTX_use_certificate_file() Failed");
-    }
-
-    //Set the RSA private Key
-    if(SSL_CTX_use_PrivateKey_file(openssl_context,"mycert.pem",\
-        SSL_FILETYPE_PEM) != 1)
-    {
-        printf("SSL_CTX_use_PrivateKey_file() Failed");
-    }
-
-    //Create SSL
     openssl_SSL = SSL_new(openssl_context);
     if(openssl_SSL== NULL)
     {
@@ -278,7 +284,7 @@ int main(int argc, char *argv[])
 
     
     SSL_shutdown(openssl_SSL);
-
+}
 
 	
     return 0;

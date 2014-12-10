@@ -92,88 +92,86 @@ unsigned short convertPort(char port[4])
     return sPort;
 }
 
-/* This function generates a cryptographically secure PRNG to be used to
- * authenticate server
-*/
-
-void r(int err)
- {
-        //err = SSL_get_error(openssl_SSL,err);
-         switch (err)
-         {
-                 case SSL_ERROR_NONE:
-                    printf("1");
-                   break;
-                 case SSL_ERROR_ZERO_RETURN:
-                     printf("2");
-                     break;
-                 case SSL_ERROR_WANT_READ:
-                     printf("3");
-                     break;
-                 case SSL_ERROR_WANT_WRITE:
-                     printf("4");
-                     break;
-                 case SSL_ERROR_WANT_CONNECT:
-                     printf("5");
-                     break;
-                 case SSL_ERROR_WANT_ACCEPT:
-                    printf("6");
-                    break;
-                case SSL_ERROR_WANT_X509_LOOKUP:
-                    printf("7");
-                     break;
-                 case SSL_ERROR_SYSCALL:
-                     printf("8");
-                     break;
-                case SSL_ERROR_SSL:
-                     printf("9");
-                     break;
-             default:
-                 printf("DEF");
-                 break;
-                                                                                     126,18
-        }
-}                                                                             50%
 
 
 /* This function authenticates the server the client is trying to connect to
 */
 int authenticateServer(SSL * openssl_SSL)
 {
-    unsigned char number[128];
-    unsigned char num_encrypt[128];
+    //Create Rsa
+    FILE *fp = fopen("./publicKey.pem","rb");
+    if(fp == NULL)
+    {
+        printf("Failed to open file \"public.pem\"");
+    }
+    RSA *rsa = RSA_new(); 
+    rsa=PEM_read_RSA_PUBKEY(fp, &rsa, NULL, NULL);
+    fclose(fp);
+
+    //Variables
+    unsigned char number[RSA_size(rsa)-11];             //Random number to be encrypted
+    unsigned char num_encrypt[RSA_size(rsa)];           //Encrypted Random Number
 
     //Generate random number;
     RAND_bytes(number, sizeof(number));
     
     //Encrypt number
-    FILE *fp = fopen("./public.pem","rb");
-    if(fp == NULL)
-    {
-        printf("Failed to open file \"public.pem\"");
-    }
-
-    RSA *rsa = RSA_new(); 
-    rsa=PEM_read_RSA_PUBKEY(fp, &rsa, NULL, NULL);
-    if(RSA_public_encrypt(sizeof(number),number,num_encrypt,rsa,\
-        RSA_PKCS1_PADDING) < 0)
+    int t =RSA_public_encrypt(sizeof(number),number,num_encrypt,rsa,\
+        RSA_PKCS1_PADDING);
+    if(t < 0)
      {
          printf("Encryption of PRNG number Failed");
-         r(ERR_get_error());
+	ERR_print_errors_fp(stdout);
      }
+     printf("i: %u \n", t);
 
     //send size of random num
-     //unsigned char numSize= sizeof(number);
-     //SSL_write(openssl_SSL,&numSize,sizeof(char));
+     unsigned char numSize= sizeof(num_encrypt);
+     SSL_write(openssl_SSL,&numSize,sizeof(numSize));
 
-     //Send ecrypted random num
-     //SSL_write(openssl_SSL,number,sizeof(number));
+    // Send ecrypted random num
+     int b = SSL_write(openssl_SSL,num_encrypt,sizeof(num_encrypt));
+     printf("encrypted random size: %u \n\n",b);
+     printf("pre_enc: %i \n",(int)number[0]);
+
+     //Hashing
+     unsigned char hashed[SHA_DIGEST_LENGTH];
+     SHA1(number,sizeof(number), hashed);
+     printf("HS: %u \n", (int)hashed[0]);
      
-
      
-     fclose(fp);
+     //Read signed hashed value
+     unsigned char signedHash_size = 0;
+     SSL_read(openssl_SSL, &signedHash_size, sizeof(signedHash_size));
+     unsigned char signedHash[signedHash_size];
+     SSL_read(openssl_SSL, signedHash, sizeof(signedHash));
 
-    return 0;
+     //Verify signned hashed value
+     unsigned char receivedHashed[SHA_DIGEST_LENGTH];
+     if(RSA_verify(NID_sha1, number, sizeof(number), signedHash, sizeof(signedHash), \
+         rsa) != 1) 
+     {
+         printf("Verification failed");
+     }
+
+
+    //Compare hashed and received hashed value
+     int isAuthenticated = 1;
+     int i = 0;
+     int size = sizeof(receivedHashed);
+     while( i < size)
+     {
+         if (receivedHashed[i] != hashed[i])
+         {
+             printf("%u \n",(unsigned int)receivedHashed[i]);
+             printf("%u \n",(unsigned int)hashed[i]);
+             printf("%i \n",i);
+             return 0;  //Received Hash value does not matched. 
+                        //Server is not Authenticated.
+         }
+         i++;
+     }
+    return 1;
 }
 
 int main(int argc, char *argv[])
@@ -184,6 +182,7 @@ int main(int argc, char *argv[])
 
     SSL_CTX *openssl_context;
     SSL *openssl_SSL;
+   // ERR_print_errors_fp(stdout);
 
     validateInput(argc,argv);
     getInput(argc,argv);
@@ -255,8 +254,8 @@ int main(int argc, char *argv[])
 
 
     //Authenticate
-    authenticateServer(openssl_SSL);
-    printf("DD"); 
+    int isAuthenticated = authenticateServer(openssl_SSL);
+    printf("isAuthenticated: %u \n",isAuthenticated); 
 
     SSL_shutdown(openssl_SSL);
 	
