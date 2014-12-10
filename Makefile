@@ -1,7 +1,7 @@
-Client : Client.cc
-	gcc -ggdb -w Client.cc -lssl -lcrypto -o client
-Server : Server.cc	
-	gcc -ggdb -w Server.cc -lssl -lcrypto -o server
+Client : Client.c
+	gcc -ggdb -w Client.c -lssl -lcrypto -o client
+Server : Server.c
+	gcc -ggdb -w Server.c -lssl -lcrypto -o server
 clean : 
 	rm client
 	rm server

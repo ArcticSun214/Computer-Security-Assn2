@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+//#include <cstring>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -94,11 +95,30 @@ void  authenticate(SSL *openssl_SSL)
     SSL_read(openssl_SSL,&numSize, sizeof(char));
     printf("HOLA:%u\n",numSize);
 
-    //Receive random number
-    int x = (int)numSize;
-    unsigned char num[x];
-    //int size = SSL_read(openssl_SSL,&num, sizeof(num));
-    //printf("Size: %u \n",size);
+    //Receive encrypted random number
+    unsigned char num[numSize];
+    int size = SSL_read(openssl_SSL,&num, sizeof(num));
+    printf("Size: %u \n",size);
+
+    //Decrypt ecrypted random number
+    unsigned char num_decrypt[numSize];
+    FILE *fp = fopen("./mycert.pem","rb");
+    if(fp == NULL)
+    {
+        printf("Failed to open \"mycert.pem\"");
+    }
+
+    RSA *rsa = RSA_new();
+    rsa = PEM_read_RSAPrivateKey(fp, &rsa, NULL, NULL);
+    if(rsa == NULL)
+        printf("RSAPrivatekey failed\n");
+    if(RSA_private_decrypt(sizeof(num), num,num_decrypt,rsa,\
+        RSA_PKCS1_PADDING) < 0)
+    {
+        printf("Failed to decrypt random number");
+    }
+
+    
 }
 
 /* A function used in debugging to output SSL error

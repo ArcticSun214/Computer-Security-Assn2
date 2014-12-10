@@ -81,7 +81,7 @@ unsigned short convertPort(char port[4])
     unsigned short sPort = 0;
     //get first digit
     sPort += (port[0] - 48) * 1000;
-    //get second digit
+    //gerrsecond digit
     sPort += (port[1] - 48) * 100;
     //get third digit
     sPort += (port[2] - 48) * 10;
@@ -96,6 +96,45 @@ unsigned short convertPort(char port[4])
  * authenticate server
 */
 
+void r(int err)
+ {
+        //err = SSL_get_error(openssl_SSL,err);
+         switch (err)
+         {
+                 case SSL_ERROR_NONE:
+                    printf("1");
+                   break;
+                 case SSL_ERROR_ZERO_RETURN:
+                     printf("2");
+                     break;
+                 case SSL_ERROR_WANT_READ:
+                     printf("3");
+                     break;
+                 case SSL_ERROR_WANT_WRITE:
+                     printf("4");
+                     break;
+                 case SSL_ERROR_WANT_CONNECT:
+                     printf("5");
+                     break;
+                 case SSL_ERROR_WANT_ACCEPT:
+                    printf("6");
+                    break;
+                case SSL_ERROR_WANT_X509_LOOKUP:
+                    printf("7");
+                     break;
+                 case SSL_ERROR_SYSCALL:
+                     printf("8");
+                     break;
+                case SSL_ERROR_SSL:
+                     printf("9");
+                     break;
+             default:
+                 printf("DEF");
+                 break;
+                                                                                     126,18
+        }
+}                                                                             50%
+
 
 /* This function authenticates the server the client is trying to connect to
 */
@@ -106,11 +145,9 @@ int authenticateServer(SSL * openssl_SSL)
 
     //Generate random number;
     RAND_bytes(number, sizeof(number));
-    printf("HI:%u\n",(int)number[0]);/*******************************************/
-
     
     //Encrypt number
-    FILE *fp = fopen("public.pem","rb");
+    FILE *fp = fopen("./public.pem","rb");
     if(fp == NULL)
     {
         printf("Failed to open file \"public.pem\"");
@@ -122,21 +159,19 @@ int authenticateServer(SSL * openssl_SSL)
         RSA_PKCS1_PADDING) < 0)
      {
          printf("Encryption of PRNG number Failed");
+         r(ERR_get_error());
      }
 
-    //Send the size of the random number
-     unsigned char numSize= sizeof(number);
-     printf("SDFSDFSFD%u\n",numSize);
-     SSL_write(openssl_SSL,&numSize,sizeof(char));
+    //send size of random num
+     //unsigned char numSize= sizeof(number);
+     //SSL_write(openssl_SSL,&numSize,sizeof(char));
+
+     //Send ecrypted random num
+     //SSL_write(openssl_SSL,number,sizeof(number));
+     
+
+     
      fclose(fp);
-
-    //Send the number
-     SSL_write(openssl_SSL,number,sizeof(number));
- 
-
-
-
-
 
     return 0;
 }
